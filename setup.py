@@ -74,7 +74,7 @@ ext_modules = []
 
 # Cache operations.
 cache_extension = CUDAExtension(
-    name="vllm.cache_ops",
+    name="vllm_cache_ops",
     sources=["csrc/cache.cpp", "csrc/cache_kernels.cu"],
     extra_compile_args={"cxx": CXX_FLAGS, "nvcc": NVCC_FLAGS},
 )
@@ -82,35 +82,35 @@ ext_modules.append(cache_extension)
 
 # Attention kernels.
 attention_extension = CUDAExtension(
-    name="vllm.attention_ops",
+    name="vllm_attention_ops",
     sources=["csrc/attention.cpp", "csrc/attention/attention_kernels.cu"],
     extra_compile_args={"cxx": CXX_FLAGS, "nvcc": NVCC_FLAGS},
 )
 ext_modules.append(attention_extension)
 
 # Positional encoding kernels.
-positional_encoding_extension = CUDAExtension(
-    name="vllm.pos_encoding_ops",
-    sources=["csrc/pos_encoding.cpp", "csrc/pos_encoding_kernels.cu"],
-    extra_compile_args={"cxx": CXX_FLAGS, "nvcc": NVCC_FLAGS},
-)
-ext_modules.append(positional_encoding_extension)
+# positional_encoding_extension = CUDAExtension(
+#     name="vllm.pos_encoding_ops",
+#     sources=["csrc/pos_encoding.cpp", "csrc/pos_encoding_kernels.cu"],
+#     extra_compile_args={"cxx": CXX_FLAGS, "nvcc": NVCC_FLAGS},
+# )
+# ext_modules.append(positional_encoding_extension)
 
 # Layer normalization kernels.
-layernorm_extension = CUDAExtension(
-    name="vllm.layernorm_ops",
-    sources=["csrc/layernorm.cpp", "csrc/layernorm_kernels.cu"],
-    extra_compile_args={"cxx": CXX_FLAGS, "nvcc": NVCC_FLAGS},
-)
-ext_modules.append(layernorm_extension)
+# layernorm_extension = CUDAExtension(
+#     name="vllm.layernorm_ops",
+#     sources=["csrc/layernorm.cpp", "csrc/layernorm_kernels.cu"],
+#     extra_compile_args={"cxx": CXX_FLAGS, "nvcc": NVCC_FLAGS},
+# )
+# ext_modules.append(layernorm_extension)
 
 # Activation kernels.
-activation_extension = CUDAExtension(
-    name="vllm.activation_ops",
-    sources=["csrc/activation.cpp", "csrc/activation_kernels.cu"],
-    extra_compile_args={"cxx": CXX_FLAGS, "nvcc": NVCC_FLAGS},
-)
-ext_modules.append(activation_extension)
+# activation_extension = CUDAExtension(
+#     name="vllm.activation_ops",
+#     sources=["csrc/activation.cpp", "csrc/activation_kernels.cu"],
+#     extra_compile_args={"cxx": CXX_FLAGS, "nvcc": NVCC_FLAGS},
+# )
+# ext_modules.append(activation_extension)
 
 
 def get_path(*filepath) -> str:
@@ -144,7 +144,7 @@ def get_requirements() -> List[str]:
 
 setuptools.setup(
     name="vllm",
-    version=find_version(get_path("vllm", "__init__.py")),
+    # version=find_version(get_path("vllm", "__init__.py")),
     author="vLLM Team",
     license="Apache 2.0",
     description="A high-throughput and memory-efficient inference and serving engine for LLMs",
@@ -162,10 +162,10 @@ setuptools.setup(
         "License :: OSI Approved :: Apache Software License",
         "Topic :: Scientific/Engineering :: Artificial Intelligence",
     ],
-    packages=setuptools.find_packages(
-        exclude=("assets", "benchmarks", "csrc", "docs", "examples", "tests")),
+    # packages=setuptools.find_packages(
+    #     exclude=("assets", "benchmarks", "csrc", "docs", "examples", "tests")),
     python_requires=">=3.8",
-    install_requires=get_requirements(),
+    # install_requires=get_requirements(),
     ext_modules=ext_modules,
     cmdclass={"build_ext": BuildExtension},
 )

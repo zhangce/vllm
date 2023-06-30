@@ -76,11 +76,14 @@ __global__ void single_query_cached_kv_attention_kernel(
   const scalar_t* __restrict__ q,         // [num_seqs, num_heads, head_size]
   const scalar_t* __restrict__ k_cache,   // [num_blocks, num_heads, head_size/x, block_size, x]
   const scalar_t* __restrict__ v_cache,   // [num_blocks, num_heads, head_size, block_size]
+  const int* __restrict__ kv_head_mapping,   // [num_seqs]
   const float scale,
   const int* __restrict__ block_tables,   // [num_seqs, max_num_blocks_per_seq]
   const int* __restrict__ context_lens,   // [num_seqs]
   const int max_num_blocks_per_seq,
-  const int q_stride) {
+  const int q_stride,
+  const int kv_stride,
+  const int kv_head_stride) {
   constexpr int THREAD_GROUP_SIZE = MAX(WARP_SIZE / BLOCK_SIZE, 1);
   constexpr int NUM_TOKENS_PER_THREAD_GROUP = (BLOCK_SIZE + WARP_SIZE - 1) / WARP_SIZE;
   constexpr int NUM_WARPS = NUM_THREADS / WARP_SIZE;
@@ -135,6 +138,7 @@ __global__ void single_query_cached_kv_attention_kernel(
 
   const int* block_table = block_tables + seq_idx * max_num_blocks_per_seq;
   const int context_len = context_lens[seq_idx];
+  const int kv_head_idx = kv_head_mapping[head_idx];
   const int num_blocks = (context_len + BLOCK_SIZE - 1) / BLOCK_SIZE;
 
   // Iterate over the key blocks.
@@ -156,8 +160,8 @@ __global__ void single_query_cached_kv_attention_kernel(
 
 #pragma unroll
       for (int j = 0; j < NUM_VECS_PER_THREAD; j++) {
-        const scalar_t* k_ptr = k_cache + physical_block_number * num_heads * HEAD_SIZE * BLOCK_SIZE
-                                        + head_idx * HEAD_SIZE * BLOCK_SIZE
+        const scalar_t* k_ptr = k_cache + physical_block_number * kv_stride
+                                        + kv_head_idx * kv_head_stride
                                         + physical_block_offset * x;
         const int vec_idx = thread_group_offset + j * THREAD_GROUP_SIZE;
         const int offset1 = (vec_idx * VEC_SIZE) / x;
@@ -242,8 +246,8 @@ __global__ void single_query_cached_kv_attention_kernel(
     L_vec logits_vec;
     from_float(logits_vec, *reinterpret_cast<Float_L_vec*>(logits + token_idx));
 
-    const scalar_t* v_ptr = v_cache + physical_block_number * num_heads * HEAD_SIZE * BLOCK_SIZE
-                                    + head_idx * HEAD_SIZE * BLOCK_SIZE;
+    const scalar_t* v_ptr = v_cache + physical_block_number * kv_stride
+                                    + kv_head_idx * kv_head_stride;
 #pragma unroll
     for (int i = 0; i < NUM_ROWS_PER_THREAD; i++) {
       const int row_idx = lane / NUM_V_VECS_PER_ROW + i * NUM_ROWS_PER_ITER;
@@ -324,11 +328,14 @@ __global__ void single_query_cached_kv_attention_kernel(
     query_ptr,                                                                                \
     key_cache_ptr,                                                                            \
     value_cache_ptr,                                                                          \
+    kv_head_mapping_ptr,                                                                      \
     scale,                                                                                    \
     block_tables_ptr,                                                                         \
     context_lens_ptr,                                                                         \
     max_num_blocks_per_seq,                                                                   \
-    query_stride);
+    query_stride,                                                                             \
+    kv_stride,                                                                                \
+    kv_head_stride);
 
 // TODO(woosuk): Tune NUM_THREADS.
 template<
@@ -340,6 +347,7 @@ void single_query_cached_kv_attention_launcher(
   torch::Tensor& query,
   torch::Tensor& key_cache,
   torch::Tensor& value_cache,
+  torch::Tensor& kv_head_mapping,
   float scale,
   torch::Tensor& block_tables,
   torch::Tensor& context_lens,
@@ -349,6 +357,8 @@ void single_query_cached_kv_attention_launcher(
   int head_size = query.size(2);
   int max_num_blocks_per_seq = block_tables.size(1);
   int query_stride = query.stride(0);
+  int kv_stride = key_cache.stride(0);
+  int kv_head_stride = key_cache.stride(1);
 
   int thread_group_size = MAX(WARP_SIZE / BLOCK_SIZE, 1);
   assert(head_size % thread_group_size == 0);
@@ -357,6 +367,7 @@ void single_query_cached_kv_attention_launcher(
   T* query_ptr = reinterpret_cast<T*>(query.data_ptr());
   T* key_cache_ptr = reinterpret_cast<T*>(key_cache.data_ptr());
   T* value_cache_ptr = reinterpret_cast<T*>(value_cache.data_ptr());
+  int* kv_head_mapping_ptr = kv_head_mapping.data_ptr<int>();
   int* block_tables_ptr = block_tables.data_ptr<int>();
   int* context_lens_ptr = context_lens.data_ptr<int>();
 
@@ -408,6 +419,7 @@ void single_query_cached_kv_attention_launcher(
     query,                                                          \
     key_cache,                                                      \
     value_cache,                                                    \
+    kv_head_mapping,                                                \
     scale,                                                          \
     block_tables,                                                   \
     context_lens,                                                   \
@@ -454,6 +466,7 @@ void single_query_cached_kv_attention(
   torch::Tensor& query,           // [num_seqs, num_heads, head_size]
   torch::Tensor& key_cache,       // [num_blocks, num_heads, head_size/x, block_size, x]
   torch::Tensor& value_cache,     // [num_blocks, num_heads, head_size, block_size]
+  torch::Tensor& kv_head_mapping, // [num_heads]
   float scale,
   torch::Tensor& block_tables,    // [num_seqs, max_num_blocks_per_seq]
   torch::Tensor& context_lens,    // [num_seqs]

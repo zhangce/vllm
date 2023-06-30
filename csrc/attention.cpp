@@ -5,6 +5,7 @@ void single_query_cached_kv_attention(
   torch::Tensor& query,
   torch::Tensor& key_cache,
   torch::Tensor& value_cache,
+  torch::Tensor& kv_head_mapping,
   float scale,
   torch::Tensor& block_tables,
   torch::Tensor& context_lens,
