@@ -385,7 +385,7 @@ void single_query_cached_kv_attention_launcher(
   // start to change from outputs_size to logits_size. But the static
   // natural of CUDA Graph cannot handle it. So we replaced max with +
   // to over-allocate a little bit more shared memory
-  int shared_mem_size = std::max(logits_size, outputs_size) + 1000000;
+  int shared_mem_size = std::max(logits_size, outputs_size) + 10000;
   //int shared_mem_size = logits_size + outputs_size;
 
   dim3 grid(num_heads, num_seqs);
