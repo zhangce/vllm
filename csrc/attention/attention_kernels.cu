@@ -383,8 +383,10 @@ void single_query_cached_kv_attention_launcher(
   // this is to make this works for CUDA Graph
   // the problem is that when padded_max_context_len grows, the max
   // start to change from outputs_size to logits_size. But the static
-  // natural of CUDA Graph cannot handle it. So we replaced max with +
-  // to over-allocate a little bit more shared memory
+  // natural of CUDA Graph cannot handle it. So we just add a little bit
+  // more -- this should be enough for most use cases. But
+  // if TGI fails when generate a lot of tokens (but fine for shorter)
+  // do check here.
   int shared_mem_size = std::max(logits_size, outputs_size) + 10000;
   //int shared_mem_size = logits_size + outputs_size;
 
