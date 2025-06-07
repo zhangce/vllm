@@ -129,3 +129,19 @@ Since this server is compatible with OpenAI API, you can use it as a drop-in rep
     print("Completion result:", completion)
 
 For a more detailed client example, refer to `examples/openai_client.py <https://github.com/vllm-project/vllm/blob/main/examples/openai_client.py>`_.
+
+Profiling PyTorch Models
+-----------------------
+
+vLLM relies on PyTorch under the hood, so you can profile the operations
+executed by a model with `torch.profiler`. The script
+`examples/model_profiler.py` demonstrates how to run a small MLP under the
+profiler and print the most expensive operators. It can also export a Chrome
+trace for further inspection.
+
+.. code-block:: console
+
+    $ python examples/model_profiler.py --trace-file trace.json
+
+Open ``chrome://tracing`` in a browser and load ``trace.json`` to visualize the
+timeline.
